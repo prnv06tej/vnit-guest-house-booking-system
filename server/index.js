@@ -1,10 +1,15 @@
-// 1. Import dependencies
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose'); // <--- NEW: Import Mongoose
 require('dotenv').config();           // <--- NEW: Import and configure dotenv
 
-// 2. Initialize the app
+// 1. Load Environment Variables
+dotenv.config();
+
+// 2. Import Routes
+const bookingRoutes = require('./routes/bookingRoutes');
+
+// 3. Create the App (Initialize)
 const app = express();
 
 // 3. Middleware
