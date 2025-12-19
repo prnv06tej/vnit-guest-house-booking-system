@@ -1,4 +1,6 @@
 // 1. Import dependencies
+// Make sure you import the Booking model!
+const Booking = require('./models/Booking');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose'); // <--- NEW: Import Mongoose
@@ -28,6 +30,17 @@ app.get('/', (req, res) => {
 
 // 6. Start Server
 const PORT = process.env.PORT || 5000; // Use port from .env or default to 5000
+// FEATURE 2: API to get bookings by Student Email
+app.get('/api/bookings/student/:email', async (req, res) => {
+    try {
+        const studentEmail = req.params.email;
+        // Find all bookings matching this email
+        const bookings = await Booking.find({ email: studentEmail });
+        res.json(bookings);
+    } catch (error) {
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
