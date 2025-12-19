@@ -1,38 +1,63 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const mongoose = require('mongoose'); // <--- NEW: Import Mongoose
-require('dotenv').config();           // <--- NEW: Import and configure dotenv
+require('dotenv').config();
 
-// 1. Load Environment Variables
-dotenv.config();
+const User = require('./models/User');
+const Booking = require('./models/Booking');
 
-// 2. Import Routes
-const bookingRoutes = require('./routes/bookingRoutes');
-
-// 3. Create the App (Initialize)
 const app = express();
 
-// 3. Middleware
+// Middleware
 app.use(express.json());
 app.use(cors());
 
-// 4. Database Connection  <--- NEW SECTION
-// We read the secret key from the .env file
-const MONGO_URI = process.env.MONGO_URI;
+// Database Connection
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('MongoDB Connected'))
+    .catch(err => console.log(err));
 
-mongoose.connect(MONGO_URI, {
-    // These settings prevent common warnings
-})
-.then(() => console.log('MongoDB Connected Successfully'))
-.catch((err) => console.error('MongoDB Connection Error:', err));
+// --- ROUTES ---
 
-// 5. Test Route
+// 1. Test Route
 app.get('/', (req, res) => {
-    res.send('Hello from VNIT Booking Server!');
+    res.send('VNIT Booking API is Running');
 });
 
-// 6. Start Server
-const PORT = process.env.PORT || 5000; // Use port from .env or default to 5000
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// 2. Pranav's Booking Route (Get all bookings)
+app.get('/api/bookings', async (req, res) => {
+    try {
+        const bookings = await Booking.find();
+        res.json(bookings);
+    } catch (err) {
+        res.status(500).json({ error: 'Server Error' });
+    }
 });
+
+// 3. YOUR NEW ROUTE (Get bookings by Student Email)
+// *** UPDATED TO MATCH PRANAV'S SCHEMA ***
+app.get('/api/bookings/student/:email', async (req, res) => {
+    try {
+        const emailToFind = req.params.email;
+        // We search for 'studentEmail' because that is what Pranav named it in Booking.js
+        const bookings = await Booking.find({ studentEmail: emailToFind });
+        res.json(bookings);
+    } catch (error) {
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
+// 4. Create a Booking
+app.post('/api/bookings', async (req, res) => {
+    try {
+        const newBooking = new Booking(req.body);
+        await newBooking.save();
+        res.status(201).json(newBooking);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to create booking' });
+    }
+});
+
+// Start Server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
