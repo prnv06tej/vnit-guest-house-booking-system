@@ -2,82 +2,62 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const FacultyDashboard = () => {
-    // 1. State: Where we store the data
-    const [bookings, setBookings] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+  const [bookings, setBookings] = useState([]);
+  const [error, setError] = useState('');
 
-    // 2. Effect: Run this when the page loads
-    useEffect(() => {
-        fetchPendingBookings();
-    }, []);
+  useEffect(() => {
+    // THE FIX: Explicitly pointing to localhost:5000
+    axios.get('http://localhost:5000/api/bookings')
+      .then(res => {
+        setBookings(res.data);
+      })
+      .catch(err => {
+        console.error(err);
+        setError('Failed to load bookings. Is the backend running?');
+      });
+  }, []);
 
-    // 3. Logic: Get data from Backend
-    const fetchPendingBookings = async () => {
-        try {
-            // "axios" acts like a browser requesting a URL
-            const response = await axios.get('http://localhost:5000/api/bookings/pending');
-            setBookings(response.data); // Save the data to State
-            setLoading(false);
-        } catch (err) {
-            console.error("Error fetching data:", err);
-            setError("Failed to load bookings. Is the backend running?");
-            setLoading(false);
-        }
-    };
+  return (
+    <div>
+      <h2>Faculty Dashboard</h2>
+      
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-    // 4. Logic: Handle Buttons (We will implement logic later)
-    const handleAction = (id, status) => {
-        alert(`You clicked ${status} for Booking ID: ${id}`);
-    };
-
-    // 5. Render: The HTML the user sees
-    if (loading) return <p>Loading requests...</p>;
-    if (error) return <p style={{ color: 'red' }}>{error}</p>;
-
-    return (
-        <div style={{ padding: '20px' }}>
-            <h2>Pending Approvals</h2>
-            
-            {bookings.length === 0 ? (
-                <p>No pending requests.</p>
-            ) : (
-                <table border="1" cellPadding="10" style={{ borderCollapse: 'collapse', width: '100%' }}>
-                    <thead>
-                        <tr>
-                            <th>Student Name</th>
-                            <th>Room Type</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {bookings.map((booking) => (
-                            <tr key={booking._id}>
-                                <td>{booking.studentName}</td>
-                                <td>{booking.roomType}</td>
-                                <td>{booking.status}</td>
-                                <td>
-                                    <button 
-                                        onClick={() => handleAction(booking._id, 'approved')}
-                                        style={{ backgroundColor: 'green', color: 'white', marginRight: '10px' }}
-                                    >
-                                        Approve
-                                    </button>
-                                    <button 
-                                        onClick={() => handleAction(booking._id, 'rejected')}
-                                        style={{ backgroundColor: 'red', color: 'white' }}
-                                    >
-                                        Reject
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
-        </div>
-    );
+      {bookings.length === 0 && !error ? (
+        <p>No bookings found.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Student Email</th>
+              <th>Room Type</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bookings.map((booking) => (
+              <tr key={booking._id}>
+                <td>{booking.studentEmail || booking.email}</td>
+                <td>{booking.roomType}</td>
+                <td style={{ 
+                  color: booking.status === 'Approved' ? 'green' : 'orange', 
+                  fontWeight: 'bold' 
+                }}>
+                  {booking.status || 'Pending'}
+                </td>
+                <td>
+                  <button style={{ padding: '5px 10px', fontSize: '14px' }}>
+                    View
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 };
 
 export default FacultyDashboard;
