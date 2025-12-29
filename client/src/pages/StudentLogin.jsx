@@ -31,6 +31,7 @@ const StudentLogin = ({ setStudentAuth }) => {
                 <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
                 
                 <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Login</button>
+                <Link to="/forgot-password">Forgot Password?</Link>
             </form>
             <p style={{ textAlign: 'center', marginTop: '15px' }}>
                 New User? <Link to="/register">Register Here</Link>

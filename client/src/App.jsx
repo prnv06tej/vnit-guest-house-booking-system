@@ -3,8 +3,9 @@ import { Routes, Route, Link, Navigate } from 'react-router-dom';
 
 // Pages
 import Home from './pages/Home';
-import Login from './pages/Login'; // This is now Admin Login
+import Login from './pages/Login'; 
 import AdminDashboard from './pages/AdminDashboard'; 
+import ForgotPassword from './pages/ForgotPassword';
 
 // Student Pages
 import StudentRegister from './pages/StudentRegister';
@@ -76,9 +77,10 @@ function App() {
             path="/student-login" 
             element={ isStudentAuthenticated ? <Navigate to="/student-dashboard" /> : <StudentLogin setStudentAuth={setIsStudentAuthenticated} /> } 
           />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route 
             path="/student-dashboard" 
-            element={ isStudentAuthenticated ? <StudentDashboard /> : <Navigate to="/student-login" /> } 
+            element={ isStudentAuthenticated ? <StudentDashboard setAuth={setIsStudentAuthenticated} /> : <Navigate to="/student-login" /> } 
           />
 
           {/* Admin Routes (Renamed URL to /admin) */}

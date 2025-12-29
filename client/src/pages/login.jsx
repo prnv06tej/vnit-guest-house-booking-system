@@ -9,8 +9,10 @@ const Login = ({ setIsAuthenticated }) => {
 
     const handleLogin = (e) => {
         e.preventDefault();
-        // --- SIMPLE HARDCODED CREDENTIALS ---
-        if (username === 'admin' && password === 'vnit123') {
+        
+      if (username === import.meta.env.VITE_ADMIN_USER && 
+    password === import.meta.env.VITE_ADMIN_PASS)
+{
             setIsAuthenticated(true); // Unlock the app
            navigate('/admin-dashboard');   // Send to dashboard
         } else {

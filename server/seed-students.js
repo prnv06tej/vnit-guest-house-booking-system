@@ -1,87 +1,57 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
+const Student = require('./models/Student'); // Import your existing model
 
-// Load environment variables
+// Load env vars (to get the DB URL)
 dotenv.config();
-
-// Define Student Schema Inline (to avoid path issues)
-const studentSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    studentId: { type: String, required: true },
-    department: { type: String, required: true },
-    phone: { type: String, required: true }
-});
-const Student = mongoose.model('Student', studentSchema);
-
-// Connect to Database
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ Connected to MongoDB Atlas'))
-    .catch(err => console.error(err));
 
 const seedStudents = async () => {
     try {
-        // 1. Clear old students
+        console.log('🔌 Connecting to MongoDB...');
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log('✅ Connected.');
+
+        // 1. CLEAR EXISTING STUDENTS (Start Fresh)
         console.log('🧹 Clearing old student data...');
         await Student.deleteMany({});
 
-        // 2. Hash the password "vnit123"
-        // We use the same password for everyone for easy testing
+        // 2. CREATE A HASHED PASSWORD
+        // We use the same password for everyone to make testing easy
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash('vnit123', salt);
 
-        // 3. Define Dummy Students
+        // 3. DEFINE 15 DUMMY STUDENTS
         const students = [
-            {
-                name: "Rahul Verma",
-                email: "rahul@vnit.ac.in",
-                password: hashedPassword,
-                studentId: "BT21CSE099",
-                department: "Computer Science",
-                phone: "9876543210"
-            },
-            {
-                name: "Anjali Gupta",
-                email: "anjali@vnit.ac.in",
-                password: hashedPassword,
-                studentId: "BT22ECE045",
-                department: "Electronics",
-                phone: "8765432109"
-            },
-            {
-                name: "Vikram Singh",
-                email: "vikram@vnit.ac.in",
-                password: hashedPassword,
-                studentId: "MT23EEE012",
-                department: "Electrical",
-                phone: "7654321098"
-            },
-            {
-                name: "Priya Sharma",
-                email: "priya@vnit.ac.in",
-                password: hashedPassword,
-                studentId: "BT20ME001",
-                department: "Mechanical",
-                phone: "6543210987"
-            },
-            {
-                name: "Amit Patel",
-                email: "amit@vnit.ac.in",
-                password: hashedPassword,
-                studentId: "BT21CHE033",
-                department: "Chemical",
-                phone: "5432109876"
-            }
+            { name: "Aarav Patel", email: "aarav@vnit.ac.in", studentId: "BT21CSE001", department: "Computer Science", phone: "9876543201" },
+            { name: "Ishita Sharma", email: "ishita@vnit.ac.in", studentId: "BT21CSE002", department: "Computer Science", phone: "9876543202" },
+            { name: "Rohan Verma", email: "rohan@vnit.ac.in", studentId: "BT21ECE015", department: "Electronics", phone: "9876543203" },
+            { name: "Sneha Gupta", email: "sneha@vnit.ac.in", studentId: "BT21ECE016", department: "Electronics", phone: "9876543204" },
+            { name: "Vikram Singh", email: "vikram@vnit.ac.in", studentId: "BT21ME045", department: "Mechanical", phone: "9876543205" },
+            { name: "Priya Das", email: "priya@vnit.ac.in", studentId: "BT21ME046", department: "Mechanical", phone: "9876543206" },
+            { name: "Karan Mehta", email: "karan@vnit.ac.in", studentId: "BT21CHE012", department: "Chemical", phone: "9876543207" },
+            { name: "Ananya Roy", email: "ananya@vnit.ac.in", studentId: "BT21CHE013", department: "Chemical", phone: "9876543208" },
+            { name: "Rahul Nair", email: "rahul@vnit.ac.in", studentId: "BT21EEE033", department: "Electrical", phone: "9876543209" },
+            { name: "Meera Iyer", email: "meera@vnit.ac.in", studentId: "BT21EEE034", department: "Electrical", phone: "9876543210" },
+            { name: "Siddharth Rao", email: "sid@vnit.ac.in", studentId: "BT21CIV055", department: "Civil", phone: "9876543211" },
+            { name: "Neha Joshi", email: "neha@vnit.ac.in", studentId: "BT21CIV056", department: "Civil", phone: "9876543212" },
+            { name: "Aditya Malhotra", email: "adi@vnit.ac.in", studentId: "BT21MIN022", department: "Mining", phone: "9876543213" },
+            { name: "Kavya Reddy", email: "kavya@vnit.ac.in", studentId: "BT21MIN023", department: "Mining", phone: "9876543214" },
+            { name: "Arjun Kapoor", email: "arjun@vnit.ac.in", studentId: "MT23CSE005", department: "M.Tech CSE", phone: "9876543215" }
         ];
 
-        // 4. Insert into DB
-        await Student.insertMany(students);
-        console.log(`✅ Successfully created ${students.length} dummy students!`);
+        // Add the hashed password to every student object
+        const studentData = students.map(s => ({ ...s, password: hashedPassword }));
+
+        // 4. INSERT INTO DATABASE
+        await Student.insertMany(studentData);
+        console.log(`🎉 Successfully added ${students.length} students!`);
         console.log('🔑 Password for all users: vnit123');
 
+        // 5. DISCONNECT
+        mongoose.connection.close();
         process.exit();
+
     } catch (error) {
         console.error('❌ Error:', error);
         process.exit(1);
