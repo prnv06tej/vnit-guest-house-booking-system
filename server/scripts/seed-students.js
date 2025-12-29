@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
-const Student = require('./models/Student'); // Import your existing model
+const Student = require('../models/Student'); // Import your existing model
 
 // Load env vars (to get the DB URL)
 dotenv.config();
