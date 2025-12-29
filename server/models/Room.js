@@ -9,4 +9,4 @@ const roomSchema = new mongoose.Schema({
     status: { type: String, enum: ['available', 'maintenance'], default: 'available' }
 });
 
-module.exports = mongoose.model('Room', roomSchema);
+module.exports = mongoose.models.Room || mongoose.model('Room', roomSchema);

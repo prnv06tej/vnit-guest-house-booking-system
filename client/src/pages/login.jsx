@@ -12,7 +12,7 @@ const Login = ({ setIsAuthenticated }) => {
         // --- SIMPLE HARDCODED CREDENTIALS ---
         if (username === 'admin' && password === 'vnit123') {
             setIsAuthenticated(true); // Unlock the app
-            navigate('/dashboard');   // Send to dashboard
+           navigate('/admin-dashboard');   // Send to dashboard
         } else {
             setError('❌ Invalid Username or Password');
         }
@@ -60,7 +60,7 @@ const Login = ({ setIsAuthenticated }) => {
     return (
         <div style={containerStyle}>
             <div style={cardStyle}>
-                <h2 style={{ color: '#002147', marginBottom: '20px' }}>🔐 Faculty Login</h2>
+                <h2 style={{ color: '#002147', marginBottom: '20px' }}>🔐 Admin Login</h2>
                 <form onSubmit={handleLogin}>
                     <input 
                         type="text" 

@@ -1,19 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
-import BookingForm from './pages/BookingForm';
-import FacultyDashboard from './pages/FacultyDashboard';
-import StudentStatus from './pages/StudentStatus';
+
+// Pages
 import Home from './pages/Home';
-import Login from './pages/Login';
+import Login from './pages/Login'; // This is now Admin Login
+import AdminDashboard from './pages/AdminDashboard'; 
+
+// Student Pages
+import StudentRegister from './pages/StudentRegister';
+import StudentLogin from './pages/StudentLogin';
+import StudentDashboard from './pages/StudentDashboard';
+
+// Components
 import Footer from './components/Footer';
 import vnitLogo from './assets/vnit-logo-1.jpg';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false); 
+  const [isStudentAuthenticated, setIsStudentAuthenticated] = useState(false);
+  
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) setIsStudentAuthenticated(true);
+  }, []);
 
-  // --- NEW: Logout Function ---
-  const handleLogout = () => {
-    setIsAuthenticated(false); // Locks the dashboard
+  // Logout Handlers
+  const handleAdminLogout = () => {
+    setIsAdminAuthenticated(false);
+  };
+
+  const handleStudentLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('student');
+    setIsStudentAuthenticated(false);
   };
 
   return (
@@ -26,30 +45,50 @@ function App() {
             <h2 style={{ margin: 0 }}>VNIT Guest House</h2>
         </div>
 
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <Link to="/" style={{ color: 'white', textDecoration: 'none', fontWeight: '500' }}>Home</Link>
-          <Link to="/book" style={{ color: 'white', textDecoration: 'none', fontWeight: '500' }}>Book Room</Link>
-          <Link to="/status" style={{ color: 'white', textDecoration: 'none', fontWeight: '500' }}>Check Status</Link>
-          <Link to="/dashboard" style={{ color: '#f39c12', textDecoration: 'none', fontWeight: 'bold' }}>Faculty Login</Link>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <Link to="/" style={linkStyle}>Home</Link>
+          
+          {/* Student Section */}
+          {isStudentAuthenticated ? (
+             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                <Link to="/student-dashboard" style={linkStyle}>Student Dashboard</Link>
+                <button onClick={handleStudentLogout} style={logoutBtnStyle}>Logout</button>
+             </div>
+          ) : (
+             <Link to="/student-login" style={linkStyle}>Student Login</Link>
+          )}
+
+          <span style={{color: '#ffffff50'}}>|</span>
+
+          {/* Admin Section (Updated Text) */}
+          <Link to="/admin" style={{ ...linkStyle, color: '#f39c12', fontWeight: 'bold' }}>Admin Login</Link>
         </div>
       </nav>
 
-      {/* MAIN CONTENT */}
+      {/* ROUTES */}
       <div style={{ flex: 1 }}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/book" element={<BookingForm />} />
-          <Route path="/status" element={<StudentStatus />} />
+          <Route path="/register" element={<StudentRegister />} />
           
+          {/* Student Routes */}
           <Route 
-            path="/login" 
-            element={<Login setIsAuthenticated={setIsAuthenticated} />} 
+            path="/student-login" 
+            element={ isStudentAuthenticated ? <Navigate to="/student-dashboard" /> : <StudentLogin setStudentAuth={setIsStudentAuthenticated} /> } 
           />
-          
-          {/* PROTECTED ROUTE: Passes the logout function to the dashboard */}
           <Route 
-            path="/dashboard" 
-            element={isAuthenticated ? <FacultyDashboard onLogout={handleLogout} /> : <Navigate to="/login" />} 
+            path="/student-dashboard" 
+            element={ isStudentAuthenticated ? <StudentDashboard /> : <Navigate to="/student-login" /> } 
+          />
+
+          {/* Admin Routes (Renamed URL to /admin) */}
+          <Route 
+            path="/admin" 
+            element={<Login setIsAuthenticated={setIsAdminAuthenticated} />} 
+          />
+          <Route 
+            path="/admin-dashboard" 
+            element={ isAdminAuthenticated ? <AdminDashboard onLogout={handleAdminLogout} /> : <Navigate to="/admin" /> } 
           />
         </Routes>
       </div>
@@ -58,5 +97,8 @@ function App() {
     </div>
   );
 }
+
+const linkStyle = { color: 'white', textDecoration: 'none', fontWeight: '500', fontSize: '1rem', cursor: 'pointer' };
+const logoutBtnStyle = { backgroundColor: 'transparent', border: '1px solid white', color: 'white', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' };
 
 export default App;

@@ -49,7 +49,7 @@ const BookingForm = () => {
             const response = await axios.post('http://localhost:5000/api/bookings', formData);
             setMessage(`✅ ${response.data.message}`);
 
-            // --- NEW: Auto-Clear after 5 seconds ---
+            //Auto-Clear after 5 seconds
             setTimeout(() => {
                 setFormData(initialFormState); // Wipe the form
                 setMessage(''); // Remove the success message
