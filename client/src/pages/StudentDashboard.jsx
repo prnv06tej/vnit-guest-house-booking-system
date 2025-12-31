@@ -71,7 +71,7 @@ const StudentDashboard = ({ setAuth }) => {
     // --- API CALLS ---
     const fetchMyBookings = async () => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/bookings/student/${student._id || student.id}`);
+            const res = await axios.get(`https://vnit-guest-house-booking-system.onrender.com/api/bookings/student/${student._id || student.id}`);
             setMyBookings(res.data);
         } catch (err) { console.error(err); }
     };
@@ -86,7 +86,7 @@ const StudentDashboard = ({ setAuth }) => {
         Object.keys(formData).forEach(key => data.append(key, formData[key]));
 
         try {
-            await axios.post('http://localhost:5000/api/bookings', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+            await axios.post('https://vnit-guest-house-booking-system.onrender.com/api/bookings', data, { headers: { 'Content-Type': 'multipart/form-data' } });
             alert('✅ Request Submitted!');
             setActiveTab('history'); fetchMyBookings();
         } catch (err) { alert('❌ Failed'); }
@@ -95,7 +95,7 @@ const StudentDashboard = ({ setAuth }) => {
     // --- PROFILE ACTIONS ---
     const handleUpdateProfile = async () => {
         try {
-            const res = await axios.put(`http://localhost:5000/api/auth/profile/${student._id || student.id}`, profileData);
+            const res = await axios.put(`https://vnit-guest-house-booking-system.onrender.com/api/auth/profile/${student._id || student.id}`, profileData);
             alert('Profile Updated!');
             
             const updatedStudent = { ...student, ...res.data };
@@ -108,7 +108,7 @@ const StudentDashboard = ({ setAuth }) => {
     const handleChangePassword = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:5000/api/auth/change-password', {
+            await axios.post('https://vnit-guest-house-booking-system.onrender.com/api/auth/change-password', {
                 studentId: student._id || student.id,
                 oldPassword: passData.oldPassword,
                 newPassword: passData.newPassword
@@ -168,7 +168,7 @@ const StudentDashboard = ({ setAuth }) => {
                             ℹ️ <strong>Instruction:</strong> Please pay the charges via the VNIT Payment Portal.
                         </p>
                         <a 
-                            href="https://pay.vnit.ac.in/home" 
+                            href="https://vnit-guest-house-booking-system.onrender.comn/home" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             style={{

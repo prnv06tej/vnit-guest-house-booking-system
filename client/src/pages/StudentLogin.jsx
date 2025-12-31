@@ -10,7 +10,7 @@ const StudentLogin = ({ setStudentAuth }) => {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+            const res = await axios.post('https://vnit-guest-house-booking-system.onrender.com/api/auth/login', { email, password });
             
             // Save Token and User Data to LocalStorage
             localStorage.setItem('token', res.data.token);

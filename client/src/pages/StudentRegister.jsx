@@ -22,7 +22,7 @@ const StudentRegister = () => {
         console.log("🔵 Attempting to register with data:", formData);
 
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/register', formData);
+            const res = await axios.post('https://vnit-guest-house-booking-system.onrender.com/api/auth/register', formData);
             console.log("🟢 Success Response:", res.data);
             alert('Registration Successful! Please Login.');
             navigate('/student-login');

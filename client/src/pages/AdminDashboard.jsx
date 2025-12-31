@@ -21,14 +21,14 @@ const AdminDashboard = ({ onLogout }) => {
 
     const fetchPendingBookings = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/bookings/pending');
+            const res = await axios.get('https://vnit-guest-house-booking-system.onrender.com/api/bookings/pending');
             setBookings(res.data);
         } catch (err) { console.error("Error fetching bookings", err); }
     };
 
     const fetchRooms = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/rooms'); 
+            const res = await axios.get('https://vnit-guest-house-booking-system.onrender.com/api/rooms'); 
             setRooms(res.data);
         } catch (err) { console.error("Error fetching rooms", err); }
     };
@@ -45,7 +45,7 @@ const AdminDashboard = ({ onLogout }) => {
             return;
         }
         try {
-            await axios.put(`http://localhost:5000/api/bookings/${selectedBookingId}/status`, {
+            await axios.put(`https://vnit-guest-house-booking-system.onrender.com/api/bookings/${selectedBookingId}/status`, {
                 status: 'Approved',
                 assignedRoom: selectedRoom
             });
@@ -61,7 +61,7 @@ const AdminDashboard = ({ onLogout }) => {
     const handleReject = async (id) => {
         if (!window.confirm("Reject this request?")) return;
         try {
-            await axios.put(`http://localhost:5000/api/bookings/${id}/status`, { status: 'Rejected' });
+            await axios.put(`https://vnit-guest-house-booking-system.onrender.com/api/bookings/${id}/status`, { status: 'Rejected' });
             fetchPendingBookings();
         } catch (err) { alert('Failed to reject'); }
     };
@@ -69,7 +69,7 @@ const AdminDashboard = ({ onLogout }) => {
     const getFileUrl = (path) => {
         if (!path) return '#';
         const cleanPath = path.replace(/^uploads[\\/]/, '');
-        return `http://localhost:5000/uploads/${cleanPath}`;
+        return `https://vnit-guest-house-booking-system.onrender.com/uploads/${cleanPath}`;
     };
 
     return (
