@@ -5,26 +5,31 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer'); 
 const Student = require('../models/Student');
 
-// --- EMAIL SETUP (Use your real Gmail for production) ---
-// For this demo, we will just LOG the password to the console to avoid Gmail security blocks.
-const sendEmail = async (to, subject, text) => {
-    // 1. Create Transporter (If you have a real Gmail App Password, put it here)
-    // const transporter = nodemailer.createTransport({
-    //     service: 'gmail',
-    //     auth: { user: 'your-email@gmail.com', pass: 'your-app-password' }
-    // });
-    
-    // 2. Simulate Sending (Check your VS Code Terminal!)
-    console.log("========================================");
-    console.log(`📧 MOCK EMAIL TO: ${to}`);
-    console.log(`📝 SUBJECT: ${subject}`);
-    console.log(`💬 MESSAGE: ${text}`);
-    console.log("========================================");
+// --- 1. EMAIL SETUP (Nodemailer) ---
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
 
-    // await transporter.sendMail({ from: 'vnit-guest-house@vnit.ac.in', to, subject, text });
+// Helper: Send Email Function
+const sendEmail = async (to, subject, text) => {
+    try {
+        await transporter.sendMail({
+            from: `"VNIT Guest House Admin" <${process.env.EMAIL_USER}>`,
+            to,
+            subject,
+            text // Sends plain text (used for temp password)
+        });
+        console.log(`📧 Email sent to ${to}`);
+    } catch (err) {
+        console.error("❌ Email failed:", err.message);
+    }
 };
 
-// 1. REGISTER
+// --- 2. REGISTER ---
 router.post('/register', async (req, res) => {
     try {
         const { name, email, password, studentId, department, phone } = req.body;
@@ -39,7 +44,7 @@ router.post('/register', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 2. LOGIN
+// --- 3. LOGIN ---
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -49,38 +54,59 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, student.password);
         if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-        const token = jwt.sign({ id: student._id }, "SECRET_KEY_VNIT", { expiresIn: "1h" });
+        const token = jwt.sign({ id: student._id }, process.env.JWT_SECRET || "SECRET_KEY_VNIT", { expiresIn: "1h" });
         
-        // Return full student object so we can update profile later
         res.json({ token, student }); 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. FORGOT PASSWORD (Generate Temp Pass)
+// --- 4. FORGOT PASSWORD (Generate Temp Pass) ---
 router.post('/forgot-password', async (req, res) => {
     try {
         const { studentId, email } = req.body;
-        
-        // Verify User
-        const student = await Student.findOne({ studentId, email });
-        if (!student) return res.status(404).json({ message: "No student found with these details." });
 
-        // Generate Temp Password
-        const tempPassword = Math.random().toString(36).slice(-8); // e.g., "x7z9q2w1"
+        // 1. Find student matching BOTH ID and Email
+        const student = await Student.findOne({ studentId, email });
+        if (!student) {
+            return res.status(404).json({ message: "Student details not found." });
+        }
+
+        // 2. Generate Temporary Password
+        const tempPassword = Math.random().toString(36).slice(-8); // e.g., "x7k9p2m1"
         
-        // Hash & Save
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        // 3. Hash the temporary password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(tempPassword, salt);
+
+        // 4. Update Database
         student.password = hashedPassword;
         await student.save();
 
-        // Send Email (Mock)
-        await sendEmail(student.email, 'Password Reset - VNIT Guest House', `Your new temporary password is: ${tempPassword}\nPlease login and change it immediately.`);
+        // 5. Send Email
+        const emailText = `
+Dear ${student.name},
 
-        res.json({ message: "Temporary password sent to your email (Check Server Console for Demo)" });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+We received a request to reset your password.
+
+🔑 Your Temporary Password is: ${tempPassword}
+
+Please login with this password immediately and change it from your Profile section.
+
+Regards,
+VNIT Guest House Admin
+        `;
+
+        await sendEmail(student.email, "Password Reset - VNIT Guest House", emailText);
+
+        res.json({ message: "Temporary password sent to your email!" });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
 });
 
-// 4. CHANGE PASSWORD
+// --- 5. CHANGE PASSWORD ---
 router.post('/change-password', async (req, res) => {
     try {
         const { studentId, oldPassword, newPassword } = req.body;
@@ -100,10 +126,10 @@ router.post('/change-password', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. UPDATE PROFILE (Phone, Name, etc.)
+// --- 6. UPDATE PROFILE ---
 router.put('/profile/:id', async (req, res) => {
     try {
-        const { phone, department } = req.body; // Only allowing Phone/Dept update for now
+        const { phone, department } = req.body; 
         const updatedStudent = await Student.findByIdAndUpdate(
             req.params.id, 
             { phone, department },

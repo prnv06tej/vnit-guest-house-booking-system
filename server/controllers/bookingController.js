@@ -1,111 +1,186 @@
 const Booking = require('../models/Booking');
 const Room = require('../models/Room');
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+const nodemailer = require('nodemailer');
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// --- EMAIL CONFIGURATION ---
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// --- ✨ NEW: PROFESSIONAL HTML EMAIL TEMPLATE ---
+const sendEmail = async (to, subject, htmlContent) => {
+    if (!to || to === 'N/A') return;
+
+    const emailTemplate = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #002147; padding: 20px; text-align: center;">
+            <h2 style="color: #ffffff; margin: 0;">VNIT Guest House</h2>
+        </div>
+        
+        <div style="padding: 25px; color: #333333; line-height: 1.6;">
+            ${htmlContent}
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+            <p style="margin: 0;">Visvesvaraya National Institute of Technology, Nagpur</p>
+            <p style="margin: 5px 0 0;">This is an automated message. Please do not reply.</p>
+        </div>
+    </div>
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: `"VNIT Guest House" <${process.env.EMAIL_USER}>`,
+            to,
+            subject,
+            html: emailTemplate // ✅ Sending HTML now
+        });
+        console.log(`📧 HTML Email sent to ${to}`);
+    } catch (err) {
+        console.error("❌ Email failed:", err.message);
+    }
+};
 
 // 1. SMART CREATE BOOKING
 exports.createBooking = async (req, res) => {
-    console.log("🔥 CONTROLLER HIT! Processing booking for:", req.body.studentName);
-
+    let localFilePath = null;
     try {
-        // 1. EXTRACT DATA (Crucial Step: Check if enrollmentId is here!)
-        const { 
-            studentName, 
-            studentEmail, 
-            enrollmentId, // <--- MUST BE HERE
-            studentId,    // <--- MUST BE HERE TOO
-            reason, 
-            roomType, 
-            ac, 
-            startDate, 
-            endDate 
+        console.log("📨 Request Body:", req.body); 
+
+        let receiptUrl = "";
+        if (req.file) {
+            localFilePath = req.file.path;
+            const uploadRes = await cloudinary.uploader.upload(localFilePath, { folder: 'vnit_receipts', resource_type: "auto" });
+            receiptUrl = uploadRes.secure_url;
+        }
+
+        const {
+            indenterName, indenterDepartment, indenterPhone, student, 
+            studentEmail, enrollmentId, 
+            guestName, guestAddress, guestPhone, guestOccupation,
+            aadhar1, aadhar2,
+            purpose, roomType, ac, floorPref,
+            arrivalDate, departureDate,
+            amountPaid, challanNo
         } = req.body;
 
-        // Debug Log: Check what the server actually sees
-        console.log("DEBUG DATA:", { enrollmentId, studentId }); 
-
-        // Basic Checks
-        if (!startDate || !endDate) {
-            return res.status(400).json({ message: "Dates are required" });
+        if (!indenterName || !guestName || !purpose || !arrivalDate || !departureDate) {
+            throw new Error("Missing required fields.");
         }
 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const today = new Date();
+        const start = new Date(arrivalDate);
+        const end = new Date(departureDate);
+        if (end <= start) throw new Error("Check-out must be after Check-in");
 
-        // Fix: Block "Backwards" dates
-        if (end <= start) {
-            return res.status(400).json({ message: "❌ Check-out date must be after Check-in date." });
-        }
-
-        // 7-Day Advance Rule
-        const minDate = new Date();
-        minDate.setDate(today.getDate() + 7);
-        minDate.setHours(0,0,0,0); 
-        
-        if (start < minDate) {
-            return res.status(400).json({ message: "❌ Booking must be at least 7 days in advance." });
-        }
-
-        // 5-Day Limit
         const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
-        if (diffDays > 5) {
-            return res.status(400).json({ message: "❌ Maximum stay allowed is 5 days." });
-        }
+        if (diffDays > 5) throw new Error("Maximum stay is 5 days");
 
-        // Calculate Bill
-        let pricePerNight = 0;
-        if (roomType === 'Single') pricePerNight = (ac === 'true' || ac === true) ? 400 : 300;
-        else pricePerNight = (ac === 'true' || ac === true) ? 800 : 600;
-        
+        const isAc = (String(ac).toLowerCase() === 'true');
+        let pricePerNight = (roomType === 'Single') ? (isAc ? 400 : 300) : (isAc ? 800 : 600);
         const totalBill = pricePerNight * diffDays;
 
-        // 2. SAVE DATA (Crucial Step: Check if enrollmentId is passed here!)
         const newBooking = new Booking({
-            studentName, 
-            studentEmail, 
-            enrollmentId, // <--- MUST BE PASSED HERE
-            studentId,    
-            reason,
-            roomType, ac: (ac === 'true' || ac === true),
-            startDate, endDate,
+            studentName: indenterName, 
+            studentId: student, 
+            department: indenterDepartment,
+            studentPhone: indenterPhone,
+            studentEmail: studentEmail || "N/A", 
+            enrollmentId: enrollmentId || "N/A",
+            guestName, guestPhone, guestAddress, guestOccupation,
+            aadhar1, aadhar2,
+            reason: purpose,
+            startDate: start,
+            endDate: end,
+            roomType, ac: isAc, floorPref,
             totalPrice: totalBill,
+            amountPaid: amountPaid || 0,
+            challanNo, receiptUrl,
             status: 'pending'
         });
 
         const savedBooking = await newBooking.save();
-        console.log("✅ Saved successfully!");
 
-        res.status(201).json({ 
-            message: "Request Sent Successfully! Bill: ₹" + totalBill, 
-            booking: savedBooking 
-        });
+        // ✅ 1. SEND "REQUEST RECEIVED" EMAIL
+        if (studentEmail) {
+            const emailBody = `
+                <h3 style="color: #002147;">Booking Request Received</h3>
+                <p>Dear <strong>${indenterName}</strong>,</p>
+                <p>Your booking request has been successfully submitted and is pending approval.</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px;">
+                    <tr style="background-color: #f2f2f2;"><td style="padding: 10px; border: 1px solid #ddd;"><strong>Guest Name</strong></td><td style="padding: 10px; border: 1px solid #ddd;">${guestName}</td></tr>
+                    <tr><td style="padding: 10px; border: 1px solid #ddd;"><strong>Check-In</strong></td><td style="padding: 10px; border: 1px solid #ddd;">${new Date(arrivalDate).toLocaleDateString()}</td></tr>
+                    <tr style="background-color: #f2f2f2;"><td style="padding: 10px; border: 1px solid #ddd;"><strong>Check-Out</strong></td><td style="padding: 10px; border: 1px solid #ddd;">${new Date(departureDate).toLocaleDateString()}</td></tr>
+                    <tr><td style="padding: 10px; border: 1px solid #ddd;"><strong>Room Type</strong></td><td style="padding: 10px; border: 1px solid #ddd;">${roomType} (${isAc ? 'AC' : 'Non-AC'})</td></tr>
+                    <tr style="background-color: #f2f2f2;"><td style="padding: 10px; border: 1px solid #ddd;"><strong>Total Bill</strong></td><td style="padding: 10px; border: 1px solid #ddd;">₹${totalBill}</td></tr>
+                </table>
+
+                <p style="margin-top: 20px;">You will receive another email once the admin takes action on your request.</p>
+            `;
+            sendEmail(studentEmail, "Booking Request Received - VNIT Guest House", emailBody);
+        }
+
+        res.status(201).json({ success: true, message: "Request Sent!", booking: savedBooking });
 
     } catch (error) {
-        console.error("Server Error:", error);
-        res.status(500).json({ message: "Server Error: " + error.message, error: error.message });
+        console.error("❌ Process Error:", error.message);
+        if (!res.headersSent) res.status(500).json({ message: error.message });
+    } finally {
+        try { if (localFilePath && fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath); } catch (e) {}
     }
-};    
-      
+};
 
-// 2. GET PENDING BOOKINGS (Faculty)
+// 2. GET PENDING (Admin)
 exports.getPendingBookings = async (req, res) => {
-    try { const bookings = await Booking.find({ status: 'pending' }); res.json(bookings); } 
+    try { const bookings = await Booking.find({ status: 'pending' }); res.json(bookings); }
     catch (e) { res.status(500).json({ message: e.message }); }
 };
 
-// 3. GET AVAILABLE ROOMS (Faculty)
-exports.getAvailableRooms = async (req, res) => {
+// 3. CHECK AVAILABILITY
+exports.checkAvailability = async (req, res) => {
     try {
-        const { roomType, ac, startDate, endDate } = req.query;
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const clashing = await Booking.find({ status: 'approved', $or: [{ startDate: { $lt: end }, endDate: { $gt: start } }] }).select('assignedRoomNumber');
-        const occupied = clashing.map(b => b.assignedRoomNumber);
-        const rooms = await Room.find({ type: roomType, ac: (ac === 'true'), roomNumber: { $nin: occupied } });
-        res.json(rooms);
-    } catch (e) { res.status(500).json({ message: e.message }); }
+        const { checkIn, checkOut } = req.query;
+        if (!checkIn || !checkOut) return res.status(400).json({ message: "Dates required" });
+        
+        const start = new Date(checkIn);
+        const end = new Date(checkOut);
+
+        if (isNaN(start) || isNaN(end)) return res.status(400).json({ message: "Invalid date format" });
+
+        const conflicting = await Booking.find({ 
+            status: 'approved', 
+            startDate: { $lt: end }, 
+            endDate: { $gt: start }
+        }).select('assignedRoomNumber');
+        
+        const busyRooms = conflicting.map(b => b.assignedRoomNumber);
+        const allRooms = await Room.find();
+        
+        const stats = {
+            busyRooms: busyRooms,
+            availableRooms: allRooms.filter(r => !busyRooms.includes(r.roomNumber)),
+            totalAvailable: allRooms.length - busyRooms.length
+        };
+        res.json(stats);
+    } catch (err) { 
+        console.error("❌ Check Error:", err); 
+        res.status(500).json({ error: err.message }); 
+    }
 };
 
-// 4. ASSIGN ROOM (Faculty)
+// 4. ASSIGN ROOM
 exports.assignRoom = async (req, res) => {
     try {
         await Booking.findByIdAndUpdate(req.params.id, { status: 'approved', assignedRoomNumber: req.body.roomNumber });
@@ -113,98 +188,106 @@ exports.assignRoom = async (req, res) => {
     } catch (e) { res.status(500).json({ message: e.message }); }
 };
 
-// 5. UPDATE STATUS (Reject)
+// 5. UPDATE STATUS (With Stylized Email)
 exports.updateStatus = async (req, res) => {
-    try { await Booking.findByIdAndUpdate(req.params.id, { status: req.body.status }); res.json({ message: "Status Updated" }); } 
-    catch (e) { res.status(500).json({ message: e.message }); }
-};
-
-// ... keep all your existing functions (createBooking, etc.) ...
-
-// --- MODIFIED: Strict Student Search (Email + ID) ---
-// --- 6. GET STUDENT BOOKINGS (Updated for Student ID) ---
-exports.getStudentBookings = async (req, res) => {
-    // 1. Log what the frontend sent us
-    console.log("🔍 SEARCH HIT! Params:", req.query); 
-
     try {
-        // Extract 'email' and 'studentId' (NOT enrollmentId)
-        const { email, studentId } = req.query; 
-        
-        // 2. Validate
-        if (!email || !studentId) {
-            console.log("❌ Missing fields in search");
-            return res.status(400).json({ message: "Please provide both Email and Student ID." });
+        const { status, assignedRoom } = req.body;
+        const updateData = { status: status.toLowerCase() };
+        if (assignedRoom) updateData.assignedRoomNumber = assignedRoom;
+
+        const updatedBooking = await Booking.findByIdAndUpdate(
+            req.params.id, 
+            updateData, 
+            { new: true, runValidators: false } 
+        );
+
+        if (!updatedBooking) return res.status(404).json({ message: "Booking ID not found" });
+
+        // ✅ 2. SEND APPROVAL/REJECTION EMAIL
+        if (updatedBooking.studentEmail) {
+            const isApproved = status.toLowerCase() === 'approved';
+            const subject = isApproved ? "🎉 Booking Approved - VNIT Guest House" : "Booking Update - VNIT Guest House";
+            
+            const emailBody = isApproved ? `
+                <h3 style="color: green;">Booking Approved ✅</h3>
+                <p>Dear <strong>${updatedBooking.studentName}</strong>,</p>
+                <p>We are pleased to inform you that your booking request for <strong>${updatedBooking.guestName}</strong> has been approved.</p>
+                
+                <div style="background-color: #e8f5e9; border: 1px solid #c8e6c9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                    <p style="margin: 0; font-size: 16px;"><strong>🏠 Allocated Room:</strong> <span style="font-size: 18px; color: #2e7d32;">${assignedRoom || 'To be assigned'}</span></p>
+                </div>
+
+                <p>Please ensure the guest carries a valid government ID proof upon arrival.</p>
+            ` : `
+                <h3 style="color: #d32f2f;">Booking Rejected ❌</h3>
+                <p>Dear <strong>${updatedBooking.studentName}</strong>,</p>
+                <p>We regret to inform you that your booking request for <strong>${updatedBooking.guestName}</strong> could not be accommodated at this time.</p>
+                <p>Please contact the administration for further details or try booking for different dates.</p>
+            `;
+
+            sendEmail(updatedBooking.studentEmail, subject, emailBody);
         }
 
-        // 3. Search Database
-        const bookings = await Booking.find({ 
-            studentEmail: email, 
-            studentId: studentId 
-        }).sort({ createdAt: -1 });
-        
-        // 4. Handle Results
-        if (bookings.length === 0) {
-            console.log("⚠️ No bookings found for this combo.");
-            return res.status(404).json({ message: "No booking found." });
-        }
+        res.json({ message: "Status Updated Successfully", booking: updatedBooking });
 
-        console.log(`✅ Found ${bookings.length} booking(s)!`);
-        res.json(bookings);
-
-    } catch (error) {
-        console.error("❌ Search Error:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+    } catch (e) {
+        console.error("❌ Update Failed:", e);
+        res.status(500).json({ message: e.message });
     }
 };
 
-// --- NEW: Faculty Room Status View ---
+// 6. STUDENT HISTORY
+exports.getStudentBookings = async (req, res) => {
+    try {
+        const id = req.params.studentId || req.query.studentId;
+        const bookings = await Booking.find({ studentId: id }).sort({ createdAt: -1 });
+        res.json(bookings);
+    } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+// 7. ROOM STATUS CHART
 exports.getRoomStatus = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        if(!startDate || !endDate) return res.status(400).json({message: "Dates required"});
-
         const start = new Date(startDate);
         const end = new Date(endDate);
-
-        // 1. Get ALL Rooms
         const allRooms = await Room.find().sort({ roomNumber: 1 });
-
-        // 2. Find Bookings in this range that are APPROVED
-        const activeBookings = await Booking.find({
-            status: 'approved',
-            $or: [{ startDate: { $lt: end }, endDate: { $gt: start } }]
+        const active = await Booking.find({ status: 'approved', $or: [{ startDate: { $lt: end }, endDate: { $gt: start } }] });
+        const data = allRooms.map(r => {
+            const b = active.find(bk => bk.assignedRoomNumber === r.roomNumber);
+            return b ? { roomNumber: r.roomNumber, status: 'Occupied' } : { roomNumber: r.roomNumber, status: 'Available' };
         });
-
-        // 3. Map status to each room
-        const roomStatus = allRooms.map(room => {
-            // Check if this room is in the active bookings list
-            const booking = activeBookings.find(b => b.assignedRoomNumber === room.roomNumber);
-            
-            if (booking) {
-                return {
-                    roomNumber: room.roomNumber,
-                    status: 'Occupied',
-                    details: `Booked: ${new Date(booking.startDate).toLocaleDateString()} - ${new Date(booking.endDate).toLocaleDateString()}`
-                };
-            } else {
-                return { roomNumber: room.roomNumber, status: 'Available', details: 'Free' };
-            }
-        });
-
-        res.json(roomStatus);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+        res.json(data);
+    } catch (error) { res.status(500).json({ message: error.message }); }
 };
-// --- 7. GET ALL ALLOCATED ROOMS (For "Who is where?" Register) ---
+
+// 8. ALLOCATED ROOMS
 exports.getAllocatedBookings = async (req, res) => {
     try {
-        // Find all bookings with status 'approved', sorted by Room Number
-        const bookings = await Booking.find({ status: 'approved' })
-                                      .sort({ assignedRoomNumber: 1 }); // 1 = Ascending order (101, 102...)
+        const bookings = await Booking.find({ status: 'approved' }).sort({ assignedRoomNumber: 1 });
         res.json(bookings);
-    } catch (error) {
-        res.status(500).json({ message: "Server Error", error: error.message });
-    }
+    } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+// 9. UPLOAD RECEIPT
+exports.uploadReceipt = async (req, res) => {
+    let localFilePath = null;
+    try {
+        if (!req.file) return res.status(400).json({ message: "No file" });
+        localFilePath = req.file.path;
+        const uploadRes = await cloudinary.uploader.upload(localFilePath, { folder: 'vnit_receipts', resource_type: "auto" });
+        await Booking.findByIdAndUpdate(req.body.bookingId, { receiptUrl: uploadRes.secure_url });
+        res.json({ success: true, url: uploadRes.secure_url });
+    } catch (e) { res.status(500).json({ message: e.message }); }
+    finally { try { if(localFilePath) fs.unlinkSync(localFilePath); } catch(e){} }
+};
+
+// 10. DELETE BOOKING
+exports.deleteBooking = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deleted = await Booking.findByIdAndDelete(id);
+        if (!deleted) return res.status(404).json({ message: "Booking not found" });
+        res.json({ message: "Booking deleted successfully" });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 };

@@ -1,88 +1,95 @@
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 
-// Load environment variables
-dotenv.config();
+// Fix Paths: Go up one level (../) to find .env and models
+dotenv.config({ path: '../.env' }); 
+const Room = require('../models/Room'); 
 
-// Define Schemas
-const roomSchema = new mongoose.Schema({
-    roomNumber: { type: String, required: true, unique: true },
-    type: { type: String, required: true }, // 'Single' or 'Double'
-    ac: { type: Boolean, required: true },
-    price: { type: Number, required: true }
-});
-const Room = mongoose.model('Room', roomSchema);
-
-const bookingSchema = new mongoose.Schema({}, { strict: false });
-const Booking = mongoose.model('Booking', bookingSchema);
-
-// Connect to Cloud DB
+// Connect to DB
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ Connected to MongoDB Atlas'))
-    .catch(err => console.error(err));
+    .then(() => console.log("✅ DB Connected for Seeding"))
+    .catch(err => {
+        console.log("❌ DB Connection Error:", err);
+        process.exit(1);
+    });
 
-const seedData = async () => {
+const seedRooms = async () => {
     try {
-        // 1. CLEAR OLD DATA
-        console.log('🧹 Clearing old data...');
-        await Booking.deleteMany({});
+        // 1. Clear existing rooms
         await Room.deleteMany({});
+        console.log("🗑️  Old rooms cleared.");
 
         const rooms = [];
 
-        // --- HELPER FUNCTION TO CREATE ROOMS ---
-        const createFloor = (prefix, start, end) => {
-            for (let i = start; i <= end; i++) {
-                // Format number to be 2 digits (e.g., 1 -> '01')
-                const numStr = i < 10 ? `0${i}` : `${i}`;
-                const roomNum = `${prefix}${numStr}`;
-                
-                let type = 'Single';
-                let ac = false;
-                let price = 300;
+        // ===============================================
+        // 🏠 GROUND FLOOR (G01 - G24)
+        // Mostly Non-AC (Budget Friendly)
+        // ===============================================
+        for (let i = 1; i <= 24; i++) {
+            const num = i < 10 ? `G0${i}` : `G${i}`; // G01, G02... G24
+            
+            // First 12 are Single Non-AC, Next 12 are Double Non-AC
+            const isSingle = i <= 12;
+            
+            rooms.push({ 
+                roomNumber: num, 
+                type: isSingle ? 'Single' : 'Double', 
+                ac: false, // Ground floor is Non-AC
+                price: isSingle ? 300 : 600, 
+                floor: 'Ground',
+                status: 'available'
+            });
+        }
 
-                // --- LOGIC FOR MIXING ROOM TYPES ---
-                
-                // GROUND FLOOR (G): Mostly Accessible / Non-AC
-                if (prefix === 'G') {
-                    if (i <= 10) { type = 'Single'; ac = false; price = 300; } // G01-G10
-                    else { type = 'Double'; ac = false; price = 600; }         // G11-G20
-                }
-                
-                // FIRST FLOOR (F): Premium / AC
-                else if (prefix === 'F') {
-                    if (i <= 10) { type = 'Single'; ac = true; price = 400; }  // F01-F10
-                    else { type = 'Double'; ac = true; price = 800; }          // F11-F20
-                }
+        // ===============================================
+        // 🏢 1ST FLOOR (101 - 124)
+        // Mix of AC and Non-AC
+        // ===============================================
+        for (let i = 101; i <= 124; i++) {
+            // First 12 are Single AC, Next 12 are Single Non-AC
+            const isAc = i <= 112;
 
-                // SECOND FLOOR (S): Budget Mix
-                else if (prefix === 'S') {
-                    if (i <= 10) { type = 'Single'; ac = true; price = 400; }  // S01-S10 (AC)
-                    else { type = 'Double'; ac = false; price = 600; }         // S11-S20 (Non-AC)
-                }
+            rooms.push({ 
+                roomNumber: i.toString(), 
+                type: 'Single', 
+                ac: isAc, 
+                price: isAc ? 400 : 300, 
+                floor: '1st',
+                status: 'available'
+            });
+        }
 
-                rooms.push({ roomNumber: roomNum, type, ac, price });
-            }
-        };
+        // ===============================================
+        // 🏙️ 2ND FLOOR (201 - 224)
+        // Premium Floor (Mostly AC)
+        // ===============================================
+        for (let i = 201; i <= 224; i++) {
+            // First 12 are Double AC, Next 12 are Single AC
+            const isDouble = i <= 212;
 
-        // 2. GENERATE THE ROOMS
-        console.log('🏗️ Generating rooms...');
-        createFloor('G', 1, 20); // Ground Floor
-        createFloor('F', 1, 20); // First Floor
-        createFloor('S', 1, 20); // Second Floor
+            rooms.push({ 
+                roomNumber: i.toString(), 
+                type: isDouble ? 'Double' : 'Single', 
+                ac: true, // All 2nd floor is AC
+                price: isDouble ? 800 : 400, 
+                floor: '2nd',
+                status: 'available'
+            });
+        }
 
-        // 3. INSERT INTO DB
+        // --- INSERT INTO DB ---
         await Room.insertMany(rooms);
-        console.log(`✅ Successfully created ${rooms.length} rooms!`);
-        console.log('   - G01 to G20');
-        console.log('   - F01 to F20');
-        console.log('   - S01 to S20');
-
+        console.log(`✅ Successfully seeded ${rooms.length} rooms!`);
+        console.log("   - Ground: 24 (Non-AC Mix)");
+        console.log("   - 1st: 24 (Single Mix)");
+        console.log("   - 2nd: 24 (AC Mix)");
+        
         process.exit();
+
     } catch (error) {
-        console.error('❌ Error:', error);
+        console.error("❌ Seeding failed:", error);
         process.exit(1);
     }
 };
 
-seedData();
+seedRooms();
