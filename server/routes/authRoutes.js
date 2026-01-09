@@ -5,13 +5,20 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer'); 
 const Student = require('../models/Student');
 
-// --- 1. EMAIL SETUP (Nodemailer) ---
+// --- 1. EMAIL SETUP (FIXED FOR RENDER/CLOUD) ---
+// We use port 465 (Secure SSL) to prevent Connection Timeouts
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com', 
+    port: 465,              
+    secure: true,           // "True" for port 465
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-    }
+    },
+    tls: {
+        rejectUnauthorized: false // Helps prevent SSL errors on some cloud servers
+    },
+    connectionTimeout: 10000 // 10 seconds timeout
 });
 
 // Helper: Send Email Function
