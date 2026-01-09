@@ -19,7 +19,14 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-    }
+    },
+    tls: {
+        rejectUnauthorized: false
+    },
+    connectionTimeout: 30000, // Wait 30 seconds (not 10)
+    greetingTimeout: 30000,   // Wait 30 seconds for server greeting
+    socketTimeout: 30000,     // Wait 30 seconds for socket
+    family: 4
 });
 
 // --- ✨ NEW: PROFESSIONAL HTML EMAIL TEMPLATE ---
