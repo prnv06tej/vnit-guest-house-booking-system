@@ -11,8 +11,11 @@ cloudinary.config({
 });
 
 // --- EMAIL CONFIGURATION ---
+// ✅ REPLACE THE OLD TRANSPORTER WITH THIS
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com', // Explicitly telling it "Go to Gmail"
+    port: 465,              // Explicitly using the Secure SSL Port (Firewall friendly)
+    secure: true,           // "True" for port 465
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
